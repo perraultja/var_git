@@ -1,0 +1,5 @@
+streamlit
+openai>=1.0.0
+pandas
+plotly>=5.0.0
+pillow
