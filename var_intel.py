@@ -397,6 +397,30 @@ def load_var_data(path: str) -> pd.DataFrame:
     if "cost_was_imputed" in df.columns:
         df["cost_was_imputed"] = df["cost_was_imputed"].fillna(False).astype(bool)
 
+    # --- DYNAMIC VAR SCORING ---
+    if "fatalities" in df.columns:
+    
+        df["vigilance"] = pd.cut(
+            df["fatalities"].fillna(0),
+            bins=[-1, 5, 25, 100, 500, 10000],
+            labels=[2, 3, 4, 5, 5]
+        ).astype(float)
+    
+        df["agility"] = df["duration_days"].apply(
+            lambda x: 5 if pd.notna(x) and x <= 2 else 4 if pd.notna(x) and x <= 5 else 3
+        )
+    
+        df["resilience"] = df["cost_impact"].map({
+            "Low": 5,
+            "Medium": 4,
+            "High": 3,
+            "Unknown": 3
+        }).fillna(3)
+    
+        df["var_score"] = (
+            (df["vigilance"] + df["agility"] + df["resilience"]) / 15 * 100
+        )
+
     return df
 
 
