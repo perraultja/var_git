@@ -397,42 +397,47 @@ def load_var_data(path: str) -> pd.DataFrame:
     if "cost_was_imputed" in df.columns:
         df["cost_was_imputed"] = df["cost_was_imputed"].fillna(False).astype(bool)
 
+ 
     # --- DYNAMIC VAR SCORING ---
     if "fatalities" in df.columns:
-        fatality_bins = pd.cut(
+        # Fatality severity
+        fatality_score = pd.cut(
             df["fatalities"].fillna(0),
-            bins=[-1, 5, 25, 100, 500, float("inf")],
+            bins=[-1, 0, 10, 50, 150, float("inf")],
             labels=[1, 2, 3, 4, 5],
         ).astype(float)
     
-        # Higher fatality events indicate greater need for vigilance
-        df["vigilance"] = fatality_bins
+        # Cost severity
+        cost_score = df["cost_impact"].map({
+            "Unknown": 2,
+            "Low": 2,
+            "Medium": 3,
+            "High": 4,
+        }).fillna(2)
     
-        # Shorter duration = stronger agility proxy
-        if "duration_days" in df.columns:
-            df["agility"] = df["duration_days"].apply(
-                lambda x: 5 if pd.notna(x) and x <= 2
-                else 4 if pd.notna(x) and x <= 5
-                else 3 if pd.notna(x) and x <= 14
-                else 2
-            )
-        else:
-            df["agility"] = 3
+        # Vigilance = risk recognition need based on highest severity signal
+        df["vigilance"] = pd.concat([fatality_score, cost_score], axis=1).max(axis=1)
     
-        # Lower cost impact = stronger resilience proxy
-        if "cost_impact" in df.columns:
-            df["resilience"] = df["cost_impact"].map({
-                "Low": 5,
-                "Medium": 4,
-                "High": 3,
-                "Unknown": 3,
-            }).fillna(3)
-        else:
-            df["resilience"] = 3
+        # Agility = shorter duration suggests faster response/recovery
+        df["agility"] = df["duration_days"].apply(
+            lambda x: 5 if pd.notna(x) and x <= 2
+            else 4 if pd.notna(x) and x <= 7
+            else 3 if pd.notna(x) and x <= 30
+            else 2
+        )
+    
+        # Resilience = lower impact is stronger resilience proxy
+        df["resilience"] = df["cost_impact"].map({
+            "Low": 5,
+            "Medium": 4,
+            "High": 3,
+            "Unknown": 3,
+        }).fillna(3)
     
         df["var_score"] = (
             (df["vigilance"] + df["agility"] + df["resilience"]) / 15 * 100
-        )
+        ).round(1)
+   
 
     
 
